@@ -1,10 +1,23 @@
 from collections import Counter
 
-def eculid_dis(x,y):
-        distance = 0
-        for i in range(len(x)):
-            distance += (x[i]-y[i])**2
-        return distance**0.5
+def eculid(x,y):
+    distance = 0
+    for i in range(len(x)):
+        distance += (x[i]-y[i])**2
+    return distance**0.5
+
+def pairwise_distance(X,Y):
+    distance_matrix = [[0]*len(X) for _ in range(len(Y))]
+    for xi, x_vec in enumerate(X):
+        for yi, y_vec in enumerate(Y):
+            distance_matrix[yi][xi] = eculid(x_vec, y_vec)
+    return distance_matrix
+
+def smallest_n_index(arr, n=1):
+    if n==1:
+        return min(enumerate(arr), key=lambda x:x[1])[0]
+    top_ls = sorted(enumerate(arr), key=lambda x:x[1])[:n]
+    return [x[0] for x in top_ls]
     
 class Knn:
     def __init__(self, distance_func, k=5):
@@ -18,34 +31,36 @@ class Knn:
     
     def predict(self, test_x):
         predictions = []
-        for test_vec in test_x:
-            distance_ls = []
-            for index, train_vec in enumerate(self.train_x):
-                dist = self.distance_func(test_vec, train_vec)
-                distance_ls.append([dist,index])
-            nn_k_index = [i[1] for i in sorted(distance_ls)[:self.k]]
-            
-            top_k_labels = []
-            for index in nn_k_index:
-                top_k_labels.append(self.train_y[index])
-            
-            predict_label = Counter(top_k_labels).most_common(1)[0][0]
-            predictions.append(predict_label)
+        pairwise_distance_mat = pairwise_distance(self.train_x , test_x)
+        for distance in pairwise_distance_mat:
+            index_list = smallest_n_index(distance, n=self.k)
+            prediction = Counter(self.train_y[idx] for idx in index_list).most_common()[0][0]
+            predictions.append(prediction)    
         return predictions
     
-    ##########################################################################################################
-    
+##########################################################################################################
+
+from collections import Counter
 from sklearn.datasets import load_iris
 from sklearn.metrics import classification_report
+import random
+
+random.seed(10)
+
 
 iris = load_iris()
+index = list(range(150))
+random.shuffle(index)
+iris['data'] = iris['data'][index]
+iris['target'] = iris['target'][index]
 
-test_n = 30
-X_train = iris['data'][:-test_n]
-y_train = iris['target'][:-test_n]
 
-X_test = iris['data'][test_n:]
-y_test = iris['target'][test_n:]
+split_n = 100
+X_train = iris['data'][:split_n]
+y_train = iris['target'][:split_n]
+
+X_test = iris['data'][split_n:]
+y_test = iris['target'][split_n:]
 
 
 clf = Knn(eculid_dis)
@@ -56,12 +71,12 @@ print(classification_report(y_test, clf.predict(X_test)))
 '''
               precision    recall  f1-score   support
 
-           0       1.00      1.00      1.00        20
-           1       0.86      1.00      0.93        50
-           2       1.00      0.84      0.91        50
+           0       1.00      1.00      1.00        17
+           1       1.00      0.94      0.97        16
+           2       0.94      1.00      0.97        17
 
-    accuracy                           0.93       120
-   macro avg       0.95      0.95      0.95       120
-weighted avg       0.94      0.93      0.93       120
+    accuracy                           0.98        50
+   macro avg       0.98      0.98      0.98        50
+weighted avg       0.98      0.98      0.98        50
 '''
 
